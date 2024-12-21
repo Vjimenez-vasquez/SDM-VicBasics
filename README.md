@@ -480,7 +480,9 @@ install.packages("ENMeval")
 library(ENMeval)
 
 #20.3#ebemos estimar dos parametros muy importantes: features(f) y regularization multiplier(rm)#
+## regularization multiplier (dipersion)
 v = seq(from=0.5,to=2,by=0.5)
+## features (transformacion de los datos)
 f = c("L", "LQ", "H", "LQH", "LQHP", "LQHPT")
 
 #21#generamos 1000 puntos aleatorios (background)#
