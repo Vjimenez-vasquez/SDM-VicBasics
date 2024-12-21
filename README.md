@@ -308,7 +308,7 @@ p4
 #################
 
 #1#configurar el area de trabajo#
-setwd("C:/Users/HP/Documents/curso_julio")
+setwd("C:/Users/THINKSTATION/Documents/victor/curso_SDM/SDM-VicBasics-main/SDM-VicBasics-main")
 getwd()
 
 #2#cargar librerias#
@@ -319,54 +319,68 @@ library(SDMPlay)
 library(rJava)
 library(caret)
 
+
 #3#leer las ocurrencias#
-oc <- read.csv("data.csv")
+oc <- read.csv("data_4.csv")
 oc
-sp1 <- oc[1:24,2:3]
-sp2 <- oc[25:47,2:3]
+sp1 <- oc[oc$Species %in% "Sp1" ,c(3,2) ]
+sp2 <- oc[oc$Species %in% "Sp2" ,c(3,2) ]
+sp3 <- oc[oc$Species %in% "Sp3" ,c(3,2) ]
 
 #4#leer los raster configurados#
-bio2  <- raster("TIFs/env_bio2.tif")
-bio7  <- raster("TIFs/env_bio7.tif")
-bio8  <- raster("TIFs/env_bio8.tif")
-bio15  <- raster("TIFs/env_bio15.tif")
-bio18  <- raster("TIFs/env_bio18.tif")
-bio19  <- raster("TIFs/env_bio19.tif")
-elev  <- raster("TIFs/env_elev.tif")
+bio7  <- raster("rasters_TIF/env_bio7.tif")
+bio8  <- raster("rasters_TIF/env_bio8.tif")
+bio15  <- raster("rasters_TIF/env_bio15.tif")
+bio18  <- raster("rasters_TIF/env_bio18.tif")
+bio19  <- raster("rasters_TIF/env_bio19.tif")
+elev  <- raster("rasters_TIF/env_elev.tif")
 
 #5#agrupar todas las capas recortadas#
-layers <- stack(elev,bio2,bio7,bio8,bio15,bio18,bio19)
+layers <- stack(elev,bio7,bio8,bio15,bio18,bio19)
 plot(layers)
 
 #6#recortar las capas al area entre 0 y 2000 msnm#
 plot(layers[[1]])
 par(mar=c(0,0,0,0))
 layers_2 <- SDMPlay:::delim.area(layers, longmin=-78, longmax=-75,latmin=-10 , latmax=-5, interval=c(0,2000))
+plot(layers_2)
+
 plot(subset(layers_2,1),legend.width=0.5, legend.shrink=0.25)
 points(sp1, pch = 21, cex = 1, bg="red")
 points(sp2, pch = 21, cex = 1, bg="blue")
+points(sp3, pch = 21, cex = 1, bg="yellow")
 
 #7#obtener background de un area delimitada entre 0 y 2000 msnm#
-dots_data <- SDMPlay:::SDMtab(oc[,2:3],layers_2, unique.data = TRUE, same=FALSE, background.nb=94)
-background <- dots_data[48:141,2:3]
+dots_data <- SDMPlay:::SDMtab(oc[,c(3,2)],layers_2, unique.data = TRUE, same=FALSE, background.nb=112)
+background <- dots_data[dots_data$id %in% "0", 2:3]
 points(background, pch = 21, cex = 0.5, bg="black")
 
 #8#Boosted Regression Trees (BRT) Method#
-dots_data_sp1 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
-brt_sp1_1 <- SDMPlay:::compute.brt(x=dots_data_sp1, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
+dots_data_sp1 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
+brt_sp1_1 <- SDMPlay:::compute.brt(x=dots_data_sp1, proj.predictors=layers_2, tc=2, lr=0.005, bf=0.75, n.trees=100)
 plot(brt_sp1_1$raster.prediction,main="BRT model sp1",legend.args=list(text="HS", side=3, font=2, cex=0.8))
 
-dots_data_sp2 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
-brt_sp2_1 <- SDMPlay:::compute.brt(x=dots_data_sp2, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
+dots_data_sp2 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
+brt_sp2_1 <- SDMPlay:::compute.brt(x=dots_data_sp2, proj.predictors=layers_2, tc=2, lr=0.005, bf=0.75, n.trees=100)
 plot(brt_sp2_1$raster.prediction,main="BRT model sp2",legend.args=list(text="HS", side=3, font=2, cex=0.8))
+
+dots_data_sp3 <- SDMPlay:::SDMtab(sp3,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp3))
+brt_sp3_1 <- SDMPlay:::compute.brt(x=dots_data_sp3, proj.predictors=layers_2, tc=2, lr=0.0005, bf=0.75, n.trees=100)
+plot(brt_sp3_1$raster.prediction,main="BRT model sp3",legend.args=list(text="HS", side=3, font=2, cex=0.8))
+
 
 par(mfrow=c(1,2))
 plot(brt_sp1_1$raster.prediction,main="BRT model sp1",legend.args=list(text="HS", side=3, font=2, cex=0.8))
 points(sp1, pch = 21, cex = 0.5, bg="red")
-points(dots_data_sp1[25:72,2:3], pch = 21, cex = 0.5, bg="grey")
+points(dots_data_sp1[dots_data_sp1$id %in% "0", 2:3 ], pch = 21, cex = 0.5, bg="grey")
+
 plot(brt_sp2_1$raster.prediction,main="BRT model sp2",legend.args=list(text="HS", side=3, font=2, cex=0.8))
 points(sp2, pch = 21, cex = 0.5, bg="blue")
-points(dots_data_sp2[24:69,2:3], pch = 21, cex = 0.5, bg="grey")
+points(dots_data_sp2[dots_data_sp2$id %in% "0", 2:3 ], pch = 21, cex = 0.5, bg="grey")
+
+plot(brt_sp3_1$raster.prediction,main="BRT model sp3",legend.args=list(text="HS", side=3, font=2, cex=0.8))
+points(sp3, pch = 21, cex = 0.5, bg="yellow")
+points(dots_data_sp3[dots_data_sp3$id %in% "0", 2:3 ], pch = 21, cex = 0.5, bg="grey")
 
 #9#obtener una tabla y una grafica de contribuciones para las variables#
 names(brt_sp1_1$response)
@@ -386,66 +400,66 @@ SDMPlay:::SDMdata.quality(data=dots_data_sp1)
 SDMPlay:::SDMdata.quality(data=dots_data_sp2)
 
 #12#BRT modelo para la sp1 con 10 replicas#
-dots_data_sp1_1 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_1 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_1 <- SDMPlay:::compute.brt(x=dots_data_sp1_1, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_2 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_2 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_2 <- SDMPlay:::compute.brt(x=dots_data_sp1_2, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_3 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_3 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_3 <- SDMPlay:::compute.brt(x=dots_data_sp1_3, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_4 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_4 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_4 <- SDMPlay:::compute.brt(x=dots_data_sp1_4, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_5 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_5 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_5 <- SDMPlay:::compute.brt(x=dots_data_sp1_5, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_6 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_6 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_6 <- SDMPlay:::compute.brt(x=dots_data_sp1_6, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_7 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_7 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_7 <- SDMPlay:::compute.brt(x=dots_data_sp1_7, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_8 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_8 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_8 <- SDMPlay:::compute.brt(x=dots_data_sp1_8, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_9 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_9 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_9 <- SDMPlay:::compute.brt(x=dots_data_sp1_9, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp1_10 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=48)
+dots_data_sp1_10 <- SDMPlay:::SDMtab(sp1,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp1))
 brt_sp1_10 <- SDMPlay:::compute.brt(x=dots_data_sp1_10, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
 
 #13#promediar las 10 predicciones BRT para sp1#
 br_sp1 <- mean(brt_sp1_1$raster.prediction,brt_sp1_2$raster.prediction,brt_sp1_3$raster.prediction,
-brt_sp1_4$raster.prediction,brt_sp1_5$raster.prediction,brt_sp1_6$raster.prediction,
-brt_sp1_7$raster.prediction,brt_sp1_8$raster.prediction,brt_sp1_9$raster.prediction,brt_sp1_10$raster.prediction)
+               brt_sp1_4$raster.prediction,brt_sp1_5$raster.prediction,brt_sp1_6$raster.prediction,
+               brt_sp1_7$raster.prediction,brt_sp1_8$raster.prediction,brt_sp1_9$raster.prediction,brt_sp1_10$raster.prediction)
 
 #14#plotear la prediccion promedio BRT para sp1#
 plot(br_sp1,main="BRT Sp1 (10 replicates)")
 
 #15#BRT modelo para la sp2 con 10 replicas#
-dots_data_sp2_1 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_1 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_1 <- SDMPlay:::compute.brt(x=dots_data_sp2_1, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_2 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_2 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_2 <- SDMPlay:::compute.brt(x=dots_data_sp2_2, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_3 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_3 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_3 <- SDMPlay:::compute.brt(x=dots_data_sp2_3, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_4 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_4 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_4 <- SDMPlay:::compute.brt(x=dots_data_sp2_4, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_5 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_5 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_5 <- SDMPlay:::compute.brt(x=dots_data_sp2_5, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_6 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_6 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_6 <- SDMPlay:::compute.brt(x=dots_data_sp2_6, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_7 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_7 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_7 <- SDMPlay:::compute.brt(x=dots_data_sp2_7, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_8 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_8 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_8 <- SDMPlay:::compute.brt(x=dots_data_sp2_8, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_9 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_9 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_9 <- SDMPlay:::compute.brt(x=dots_data_sp2_9, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
-dots_data_sp2_10 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=46)
+dots_data_sp2_10 <- SDMPlay:::SDMtab(sp2,layers_2, unique.data = TRUE, same=FALSE, background.nb=2*nrow(sp2))
 brt_sp2_10 <- SDMPlay:::compute.brt(x=dots_data_sp2_10, proj.predictors=layers_2, tc=2, lr=0.001, bf=0.75, n.trees=50)
 
 #16#promediar las 10 predicciones BRT para sp2#
 br_sp2 <- mean(brt_sp2_1$raster.prediction,brt_sp2_2$raster.prediction,brt_sp2_3$raster.prediction,
-brt_sp2_4$raster.prediction,brt_sp2_5$raster.prediction,brt_sp2_6$raster.prediction,
-brt_sp2_7$raster.prediction,brt_sp2_8$raster.prediction,brt_sp2_9$raster.prediction,brt_sp2_10$raster.prediction)
+               brt_sp2_4$raster.prediction,brt_sp2_5$raster.prediction,brt_sp2_6$raster.prediction,
+               brt_sp2_7$raster.prediction,brt_sp2_8$raster.prediction,brt_sp2_9$raster.prediction,brt_sp2_10$raster.prediction)
 
 #17#plotear las 10 predicciones BRT para sp2#
 br_sp2_all <- stack(brt_sp2_1$raster.prediction,brt_sp2_2$raster.prediction,brt_sp2_3$raster.prediction,
-brt_sp2_4$raster.prediction,brt_sp2_5$raster.prediction,brt_sp2_6$raster.prediction,
-brt_sp2_7$raster.prediction,brt_sp2_8$raster.prediction,brt_sp2_9$raster.prediction,brt_sp2_10$raster.prediction)
+                    brt_sp2_4$raster.prediction,brt_sp2_5$raster.prediction,brt_sp2_6$raster.prediction,
+                    brt_sp2_7$raster.prediction,brt_sp2_8$raster.prediction,brt_sp2_9$raster.prediction,brt_sp2_10$raster.prediction)
 
 #18#plotear la prediccion promedio BRT para sp2#
 plot(br_sp2,main="BRT-SDM Sp2 (10 replicates)",legend.args=list(text="Probability", side=3, font=2, cex=0.8))
@@ -462,35 +476,54 @@ points(sp2, pch = 21, cex = 0.5, bg="blue")
 system.file("java", package="dismo")
 
 #20.2#instalamos el paquete ENMeval#
-#install.packages("ENMeval")#
+install.packages("ENMeval")
 library(ENMeval)
 
 #20.3#ebemos estimar dos parametros muy importantes: features(f) y regularization multiplier(rm)#
-v = seq(from=0.5,to=4,by=0.5)
+v = seq(from=0.5,to=2,by=0.5)
 f = c("L", "LQ", "H", "LQH", "LQHP", "LQHPT")
 
 #21#generamos 1000 puntos aleatorios (background)#
 sp1_dots <- SDMPlay:::SDMtab(sp1,layers_2, unique.data=TRUE, same=FALSE, background.nb=10000)
-sp1_bg <- sp1_dots[25:10024,2:3]
+sp1_bg <- sp1_dots[sp1_dots$id %in% "0", 2:3]
+names(sp1_bg) <- names(sp1)
 plot(layers_2[[1]])
 points(sp1, pch = 21, cex = 0.8, bg="red")
 points(sp1_bg, pch = 21, cex = 0.2, bg="grey")
 
 #22#evaluamos los dos parametros#
-enmeval_results_sp1 <- ENMevaluate(sp1,layers_2, method="randomkfold", kfolds=10, algorithm='maxent.jar', bg.coords=sp1_bg,parallel=TRUE,numCores=4,RMvalues=v,fc=f)
+head(sp1)
+head(sp1_bg)
+
+enmeval_results_sp1 <- ENMevaluate(sp1,layers_2, method="randomkfold", algorithm='maxent.jar', bg.coords=sp1_bg,parallel=TRUE,numCores=4,RMvalues=v,fc=f)
 enmeval_results_sp1@results
 write.csv(enmeval_results_sp1@results, "enmeval_results_sp1.csv")
 
 sp2_dots <- SDMPlay:::SDMtab(sp2,layers_2, unique.data=TRUE, same=FALSE, background.nb=10000)
-sp2_bg <- sp2_dots[24:10023,2:3]
+sp2_bg <- sp2_dots[sp2_dots$id %in% "0", 2:3]
+names(sp2_bg) <- names(sp2)
 plot(layers_2[[1]])
 points(sp2, pch = 21, cex = 1, bg="blue")
 points(sp2_bg, pch = 21, cex = 0.1, bg="grey")
 
-enmeval_results_sp2 <- ENMevaluate(sp2,layers_2, method="randomkfold", kfolds=10, algorithm='maxent.jar', bg.coords=sp2_bg,parallel=TRUE,numCores=4,RMvalues=v,fc=f)
+enmeval_results_sp2 <- ENMevaluate(sp2,layers_2, method="randomkfold", algorithm='maxent.jar', bg.coords=sp2_bg,parallel=TRUE,numCores=2,RMvalues=v,fc=f)
 enmeval_results_sp2@results
 enmeval_results_sp2@models
 write.csv(enmeval_results_sp2@results, "enmeval_results_sp2.csv")
+
+
+sp3_dots <- SDMPlay:::SDMtab(sp3,layers_2, unique.data=TRUE, same=FALSE, background.nb=10000)
+sp3_bg <- sp3_dots[sp3_dots$id %in% "0", 2:3]
+names(sp3_bg) <- names(sp3)
+plot(layers_2[[1]])
+points(sp3, pch = 21, cex = 1, bg="blue")
+points(sp3_bg, pch = 21, cex = 0.1, bg="grey")
+
+enmeval_results_sp3 <- ENMevaluate(sp3,layers_2, method="randomkfold", algorithm='maxent.jar', bg.coords=sp3_bg,parallel=TRUE,numCores=2,RMvalues=v,fc=f)
+enmeval_results_sp3@results
+enmeval_results_sp3@models
+write.csv(enmeval_results_sp3@results, "enmeval_results_sp2.csv")
+
 
 #23#cargar los raster generados en MAXENT#
 sp1_max <- raster("maxent_mapas/sp1_avg.asc")
